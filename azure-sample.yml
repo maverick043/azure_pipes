@@ -1,0 +1,58 @@
+# azure-pipelines.yml
+
+trigger:
+- main  # Replace with your desired branch
+
+pr: none
+
+pool:
+  vmImage: 'windows-latest'  # Use a suitable agent image
+
+variables:
+  isoSourceDir: '$(Build.SourcesDirectory)/iso-source'
+  isoOutputDir: '$(Build.ArtifactStagingDirectory)/iso-output'
+
+stages:
+- stage: BuildISO
+  jobs:
+  - job: WindowsISO
+    steps:
+    - checkout: self
+
+    - script: |
+        # Your script to customize the Windows ISO
+        # Copy files to isoSourceDir, make changes, etc.
+      displayName: 'Customize Windows ISO'
+
+    - task: ArchiveFiles@2
+      inputs:
+        rootFolderOrFile: '$(isoSourceDir)'
+        includeRootFolder: false
+        archiveFile: '$(Build.ArtifactStagingDirectory)/custom-windows.iso'
+      displayName: 'Archive Custom Windows ISO'
+
+    - publish: $(Build.ArtifactStagingDirectory)/custom-windows.iso
+      artifact: WindowsISO
+      displayName: 'Publish Windows ISO Artifact'
+
+  - job: LinuxISO
+    steps:
+    - checkout: self
+
+    - script: |
+        # Your script to customize the Linux ISO
+        # Copy files to isoSourceDir, make changes, etc.
+      displayName: 'Customize Linux ISO'
+
+    - task: ArchiveFiles@2
+      inputs:
+        rootFolderOrFile: '$(isoSourceDir)'
+        includeRootFolder: false
+        archiveFile: '$(Build.ArtifactStagingDirectory)/custom-linux.iso'
+      displayName: 'Archive Custom Linux ISO'
+
+    - publish: $(Build.ArtifactStagingDirectory)/custom-linux.iso
+      artifact: LinuxISO
+      displayName: 'Publish Linux ISO Artifact'
+
+# Add more stages, jobs, and tasks as needed for other custom ISOs or additional steps.
