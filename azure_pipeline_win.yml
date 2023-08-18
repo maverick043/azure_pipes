@@ -1,0 +1,35 @@
+# azure-pipelines.yml
+
+trigger:
+- main
+
+pr: none
+
+stages:
+- stage: BuildISO
+  jobs:
+  - job: WindowsISO
+    pool:
+      vmImage: 'windows-latest'
+    steps:
+    - checkout: self
+
+    - powershell: |
+        # Set language and region settings
+        $Language = "en-US"  # Replace with your desired language code
+        $Region = "US"       # Replace with your desired region code
+
+        # Set language and region settings in unattend.xml
+        $unattendXmlPath = "$PSScriptRoot\iso-source\unattend.xml"
+        $unattendXmlContent = Get-Content -Path $unattendXmlPath -Raw
+
+        $modifiedXmlContent = $unattendXmlContent -replace "LanguageToSet", $Language `
+                                                  -replace "RegionToSet", $Region
+
+        $modifiedXmlContent | Set-Content -Path $unattendXmlPath
+
+        # Run the ISO customization script
+        .\CustomizeWindowsISO.ps1
+      displayName: 'Customize Windows ISO'
+
+# Add more stages, jobs, and tasks as needed for other custom ISOs or additional steps.
