@@ -1,0 +1,11 @@
+# defaults/main.yml
+
+idm_repo_url: "http://your-idm-repo-url"
+idm_packages:
+  - ipa-client
+  - ipa-admintools
+  - chrony
+nameservers:
+  - 8.8.8.8
+  - 8.8.4.4
+timezone: "UTC"
