@@ -1,0 +1,36 @@
+# tasks/main.yml
+
+- name: Add IDM repository
+  yum_repository:
+    name: idm
+    description: IDM Repository
+    baseurl: "{{ idm_repo_url }}"
+    gpgcheck: no
+    enabled: yes
+
+- name: Install IDM client packages
+  yum:
+    name: "{{ idm_packages }}"
+    state: present
+
+- name: Configure IDM client
+  command: ipa-client-install --mkhomedir --unattended
+
+- name: Configure nameservers
+  lineinfile:
+    path: /etc/resolv.conf
+    state: present
+    regexp: '^nameserver'
+    line: "nameserver {{ item }}"
+  with_items: "{{ nameservers }}"
+
+- name: Set timezone to UTC
+  timezone:
+    name: "{{ timezone }}"
+
+- name: Restart chronyd service
+  service:
+    name: chronyd
+    state: restarted
+    enabled: yes
+  when: "'chrony' in idm_packages"
