@@ -1,0 +1,6 @@
+# site.yml
+
+- hosts: idm_clients
+  become: yes
+  roles:
+    - idm_client
