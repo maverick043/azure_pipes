@@ -28,6 +28,15 @@
   timezone:
     name: "{{ timezone }}"
 
+- name: Configure rsyslog
+  copy:
+    dest: /etc/rsyslog.d/custom.conf
+    content: |
+      {% for line in rsyslog_config %}
+      {{ line }}
+      {% endfor %}
+  notify: restart_rsyslog
+
 - name: Restart chronyd service
   service:
     name: chronyd
