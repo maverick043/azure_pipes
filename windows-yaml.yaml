@@ -1,0 +1,54 @@
+{
+  "variables": {
+    "iso_url": "{{user `iso_url`}}",
+    "iso_checksum": "{{user `iso_checksum`}}"
+  },
+  "builders": [
+    {
+      "type": "qemu",
+      "format": "raw",
+      "accelerator": "kvm",
+      "iso_url": "{{user `iso_url`}}",
+      "iso_checksum": "{{user `iso_checksum`}}",
+      "iso_checksum_type": "sha256",
+      "ssh_username": "Administrator",
+      "ssh_password": "Password1234!",
+      "ssh_wait_timeout": "60m",
+      "vm_name": "win-server",
+      "disk_size": "61440", // Adjust disk size as needed (60 GB)
+      "headless": true,
+      "boot_wait": "2m",
+      "boot_command": [
+        "<tab><wait>",
+        " autounattend=<floppy>/autounattend.xml<enter>"
+      ],
+      "floppy_files": [
+        "autounattend.xml",
+        "drivers/virtio-win.iso"
+      ],
+      "shutdown_command": "shutdown /s /t 0",
+      "output_directory": "output-windows-image",
+      "communicator": "winrm",
+      "winrm_username": "Administrator",
+      "winrm_password": "Password1234!",
+      "winrm_timeout": "30m",
+      "winrm_insecure": true
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "powershell",
+      "inline": [
+        "Invoke-WebRequest -Uri 'https://cloudbase.it/downloads/CloudbaseInitSetup.msi' -OutFile 'C:\\Windows\\Temp\\CloudbaseInitSetup.msi'",
+        "Start-Process msiexec.exe -ArgumentList '/i C:\\Windows\\Temp\\CloudbaseInitSetup.msi /quiet' -NoNewWindow -Wait"
+      ]
+    },
+    {
+      "type": "powershell",
+      "inline": [
+        "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters' -Name 'Hostname' -Value 'win-server'",
+        "Set-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters' -Name 'NV Hostname' -Value 'win-server'"
+      ]
+    }
+  ]
+}
