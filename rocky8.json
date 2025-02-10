@@ -1,0 +1,72 @@
+{
+  "variables": {
+    "iso_url": "https://download.rockylinux.org/pub/rocky/9/isos/x86_64/Rocky-9.3-x86_64-dvd.iso",
+    "iso_checksum": "sha256:PUT_ACTUAL_CHECKSUM_HERE",
+    "output_iso": "custom-rocky-linux.iso"
+  },
+  "builders": [
+    {
+      "type": "qemu",
+      "iso_url": "{{user `iso_url`}}",
+      "iso_checksum": "{{user `iso_checksum`}}",
+      "iso_checksum_type": "sha256",
+      "output_directory": "output-rocky-linux",
+      "disk_size": 20000,
+      "format": "qcow2",
+      "headless": true,
+      "accelerator": "kvm",
+      "http_directory": "http",
+      "boot_command": [
+        "<tab> inst.text inst.ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ks.cfg<enter><wait>"
+      ],
+      "boot_wait": "10s",
+      "shutdown_command": "shutdown -h now",
+      "qemuargs": [
+        ["-m", "4096"],
+        ["-device", "virtio-net,netdev=net0"],
+        ["-netdev", "user,id=net0"],
+        ["-device", "virtio-net,netdev=net1"],
+        ["-netdev", "user,id=net1"],
+        ["-device", "virtio-net,netdev=net2"],
+        ["-netdev", "user,id=net2"],
+        ["-device", "virtio-net,netdev=net3"],
+        ["-netdev", "user,id=net3"]
+      ]
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+        "echo 'Configuring network interfaces...'",
+        "nmcli con mod eth0 ipv4.method auto",
+        "nmcli con mod eth1 ipv4.method auto",
+        "nmcli con mod eth2 ipv4.method auto",
+        "nmcli con mod eth3 ipv4.method auto",
+        "nmcli con up eth0",
+        "nmcli con up eth1",
+        "nmcli con up eth2",
+        "nmcli con up eth3",
+        "echo 'Setting keyboard layout...'",
+        "localectl set-keymap us",
+        "echo 'Setting timezone...'",
+        "timedatectl set-timezone America/New_York",
+        "echo 'Configuring proxy...'",
+        "echo 'export http_proxy=http://proxy.example.com:8080' >> /etc/environment",
+        "echo 'export https_proxy=http://proxy.example.com:8080' >> /etc/environment",
+        "echo 'Adding certificates...'",
+        "cp /tmp/certs/*.crt /etc/pki/ca-trust/source/anchors/",
+        "update-ca-trust"
+      ]
+    }
+  ],
+  "post-processors": [
+    {
+      "type": "shell-local",
+      "inline": [
+        "echo 'Converting QCOW2 to ISO...'",
+        "virt-make-fs --type=iso --label=ROCKY_CUSTOM output-rocky-linux {{user `output_iso`}}"
+      ]
+    }
+  ]
+}
