@@ -1,0 +1,11 @@
+vm:
+  name: test-vm
+  cpu: 4
+  memory: 8192
+  disk: 50
+  network:
+    - name: br0
+      mode: dhcp
+  user:
+    name: john
+    ssh_key: ssh-rsa AAAAB3...
