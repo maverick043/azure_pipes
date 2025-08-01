@@ -1,0 +1,21 @@
+companies:
+  - company:
+      name: "company1"
+      platoons:
+        - platoon:
+            name: "platoon1"
+            nodes:
+              - node:
+                  name: "x1"
+                  network_interfaces:
+                    - network_interface:
+                        name: "net0"
+                        network: "platoon3"
+                        ip_address: "192.168.1.10"
+              - node:
+                  name: "y1"
+                  network_interfaces:
+                    - network_interface:
+                        name: "net0"
+                        network: "platoon3"
+                        ip_address: "192.168.1.11"
