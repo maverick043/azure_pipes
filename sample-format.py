@@ -1,8 +1,11 @@
 import yaml
 
-# Example values (you need to define B, C, nodes earlier)
-B = 1
-C = 1
+# Custom Dumper to fix PyYAML's default bad indentation
+class IndentDumper(yaml.SafeDumper):
+    def increase_indent(self, flow=False, indentless=False):
+        return super(IndentDumper, self).increase_indent(flow, indentless=False)
+
+# Example data
 nodes = [
     {
         "node": {
@@ -34,16 +37,15 @@ nodes = [
     }
 ]
 
-# Build the topology dictionary
 topology = {
     "companies": [
         {
             "company": {
-                "name": f"company{B}",
+                "name": "company1",
                 "platoons": [
                     {
                         "platoon": {
-                            "name": f"platoon{C}",
+                            "name": "platoon1",
                             "nodes": nodes
                         }
                     }
@@ -53,6 +55,13 @@ topology = {
     ]
 }
 
-# Write YAML file
-with open("topology.yaml", "w") as file:
-    yaml.dump(topology, file, default_flow_style=False, sort_keys=False, indent=2)
+# Write to YAML with correct indentation
+with open("topology.yaml", "w") as f:
+    yaml.dump(
+        topology,
+        f,
+        Dumper=IndentDumper,
+        default_flow_style=False,
+        sort_keys=False,
+        indent=2
+    )
