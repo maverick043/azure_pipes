@@ -1,0 +1,137 @@
+# LiteLLM Helm values — smart auto-routing across 3 self-hosted models
+# Chart: deploy/charts/litellm-helm   Image: ghcr.io/berriai/litellm:v1.91.1
+#
+# Only overrides are listed here; everything else keeps the chart defaults.
+#   helm upgrade --install litellm oci://ghcr.io/berriai/litellm-helm -f values.yaml
+#
+# Clients just call  model: "default"  and the complexity router picks a tier:
+#   SIMPLE    -> qwen3.5-0.8b       greetings, one-line facts, "what is X"
+#   MEDIUM    -> nemotron-3-8b      everyday questions, summaries, rewrites
+#   COMPLEX   -> qwen3-27b-instruct code, technical / long prompts (no thinking, fast)
+#   REASONING -> qwen3-27b-think    "think step by step", "pros and cons", proofs (thinking on)
+# The individual models stay callable by name too.
+
+image:
+  repository: ghcr.io/berriai/litellm   # or ghcr.io/berriai/litellm-database if that's what you run
+  tag: "v1.91.1"
+  pullPolicy: IfNotPresent
+
+proxy_config:
+  model_list:
+    # ---------- The auto router (this is what clients call) ----------
+    - model_name: default          # the name every client uses
+      litellm_params:
+        model: auto_router/complexity_router
+        complexity_router_default_model: nemotron-3-8b   # used if a tier can't be decided
+        complexity_router_config:
+          tiers:
+            SIMPLE: qwen3.5-0.8b
+            MEDIUM: nemotron-3-8b
+            COMPLEX: qwen3-27b-instruct
+            REASONING: qwen3-27b-think
+          # Scores run roughly -0.15 .. 0.95. Tuned for this lineup (defaults are
+          # 0.15 / 0.35 / 0.60, which send emails and "explain X" to the 0.8B and
+          # never let plain coding reach the 27B):
+          #   < 0.00  -> SIMPLE    only greetings / short one-liners hit the 0.8B
+          #   < 0.19  -> MEDIUM
+          #   < 0.45  -> COMPLEX   any real code / infra question goes to the 27B
+          #   >= 0.45 -> REASONING (also forced whenever 2+ reasoning phrases appear)
+          tier_boundaries:
+            simple_medium: 0.0
+            medium_complex: 0.19   # just under 0.2 (float rounding)
+            complex_reasoning: 0.45
+          token_thresholds:
+            simple: 15     # prompts under ~15 tokens count as "short"
+            complex: 400   # prompts over ~400 tokens get pushed up
+          # Replaces the built-in list, so the defaults are repeated here + a few extras.
+          # Only the user's message is checked, never the system prompt.
+          reasoning_keywords:
+            - step by step
+            - think through
+            - let's think
+            - reason through
+            - analyze this
+            - break down
+            - explain your reasoning
+            - show your work
+            - chain of thought
+            - think carefully
+            - consider all
+            - evaluate
+            - pros and cons
+            - compare and contrast
+            - weigh the options
+            - logical
+            - deduce
+            - infer
+            - conclude
+            # extras
+            - prove
+            - proof
+            - derive
+            - root cause
+            - trade-offs
+            - tradeoffs
+            - in depth
+
+    # ---------- Qwen3 27B, thinking ON (REASONING tier) ----------
+    - model_name: qwen3-27b-think
+      litellm_params:
+        model: hosted_vllm/qwen3-27b                          # must match the id at <api_base>/models
+        api_base: http://qwen3-27b.llm.svc.cluster.local:8000/v1
+        # api_key: os.environ/QWEN_API_KEY                    # only if your server requires one
+        timeout: 600                                          # thinking runs can be long
+      model_info:
+        supports_reasoning: true
+
+    # ---------- Same Qwen3 27B, thinking OFF (COMPLEX tier) ----------
+    - model_name: qwen3-27b-instruct
+      litellm_params:
+        model: hosted_vllm/qwen3-27b
+        api_base: http://qwen3-27b.llm.svc.cluster.local:8000/v1
+        timeout: 300
+        extra_body:
+          chat_template_kwargs:
+            enable_thinking: false        # vLLM/SGLang. On Ollama use: think: false
+
+    # ---------- Nemotron 3 8B (MEDIUM tier) ----------
+    - model_name: nemotron-3-8b
+      litellm_params:
+        model: hosted_vllm/nemotron-3-8b
+        api_base: http://nemotron-3-8b.llm.svc.cluster.local:8000/v1
+        timeout: 180
+        # If it reasons by default and you want MEDIUM to stay snappy:
+        # extra_body:
+        #   chat_template_kwargs:
+        #     enable_thinking: false
+
+    # ---------- Qwen3.5 0.8B (SIMPLE tier) ----------
+    - model_name: qwen3.5-0.8b
+      litellm_params:
+        model: hosted_vllm/qwen3.5-0.8b
+        api_base: http://qwen3-5-0-8b.llm.svc.cluster.local:8000/v1
+        timeout: 60
+        extra_body:
+          chat_template_kwargs:
+            enable_thinking: false        # keep the tiny model fast
+
+  router_settings:
+    routing_strategy: simple-shuffle      # default; the auto router works on top of it
+    num_retries: 2
+    allowed_fails: 3
+    cooldown_time: 30
+    # "default" is the group the client called, so its fallbacks fire when the
+    # routed tier fails; the per-model entries cover direct calls.
+    fallbacks:
+      - default: ["qwen3-27b-instruct", "nemotron-3-8b"]
+      - qwen3.5-0.8b: ["nemotron-3-8b"]
+      - nemotron-3-8b: ["qwen3-27b-instruct"]
+      - qwen3-27b-instruct: ["nemotron-3-8b"]
+      - qwen3-27b-think: ["qwen3-27b-instruct"]
+
+  litellm_settings:
+    drop_params: true                     # silently drop params a backend doesn't support
+    request_timeout: 600
+
+  general_settings:
+    master_key: os.environ/PROXY_MASTER_KEY
