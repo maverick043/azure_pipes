@@ -1,0 +1,19 @@
+[
+  {
+    "name": "OpenWebUI",
+    "vendor": "customendpoint",
+    "apiKey": "${input:chat.lm.secret.XXXXX}",
+    "apiType": "chat-completions",
+    "models": [
+      {
+        "id": "qwen2.5-coder:7b",
+        "name": "Qwen Coder (OWUI)",
+        "url": "https://openwebui.yourdomain.com/api/chat/completions",
+        "toolCalling": true,
+        "vision": false,
+        "maxInputTokens": 28000,
+        "maxOutputTokens": 4000
+      }
+    ]
+  }
+]
