@@ -1,0 +1,18 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: rke2-ingress-nginx
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    controller:
+      service:
+        enabled: true
+        type: LoadBalancer
+        loadBalancerClass: metallb
+        externalTrafficPolicy: Local
+        annotations:
+          metallb.universe.tf/address-pool: pool-21
+          metallb.universe.tf/loadBalancerIPs: x.x.21.200
+      publishService:
+        enabled: true
