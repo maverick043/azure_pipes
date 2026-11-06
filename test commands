@@ -1,0 +1,6 @@
+kubectl -n kube-system patch svc traefik-published \
+  --subresource=status --type=merge -p '{
+  "status":{"loadBalancer":{"ingress":[
+    {"ip":"<KUBE_VIP_IP>"},
+    {"ip":"<METALLB_IP>"}
+  ]}}}'
