@@ -1,0 +1,74 @@
+
+flowchart TB
+    ADMIN["Platform Administrators"]
+    GIT["GitLab / Git Repository<br/>GitOps Configurations"]
+
+    subgraph MGMT["Management Infrastructure"]
+        LB["Load Balancer<br/>rancher.example.com"]
+
+        subgraph K3S["3-Node K3s HA Cluster (Embedded etcd)"]
+            N1["Ubuntu VM 1<br/>K3s Server + etcd"]
+            N2["Ubuntu VM 2<br/>K3s Server + etcd"]
+            N3["Ubuntu VM 3<br/>K3s Server + etcd"]
+
+            RANCHER["Rancher Server<br/>3 Replicas"]
+            FLEET["Fleet Controller<br/>GitOps"]
+            KEYCLOAK["Keycloak<br/>Central Identity Provider"]
+            CERT["cert-manager"]
+        end
+    end
+
+    subgraph PROD["Production RKE2 Cluster"]
+        P1["RKE2 Control Plane"]
+        PA["Fleet Agent"]
+        PW["Worker Nodes<br/>Production Applications"]
+    end
+
+    subgraph DEV["Development RKE2 Cluster"]
+        D1["RKE2 Control Plane"]
+        DA["Fleet Agent"]
+        DW["Worker Nodes<br/>Development Applications"]
+    end
+
+    subgraph TEST["Testing RKE2 Cluster"]
+        T1["RKE2 Control Plane"]
+        TA["Fleet Agent"]
+        TW["Worker Nodes<br/>Testing Applications"]
+    end
+
+    ADMIN --> LB
+    LB --> RANCHER
+
+    N1 --- N2
+    N2 --- N3
+    N3 --- N1
+
+    N1 -. hosts .-> RANCHER
+    N2 -. hosts .-> FLEET
+    N3 -. hosts .-> KEYCLOAK
+
+    CERT --> RANCHER
+    KEYCLOAK <-->|OIDC / SSO| RANCHER
+
+    RANCHER -->|Cluster management| P1
+    RANCHER -->|Cluster management| D1
+    RANCHER -->|Cluster management| T1
+
+    GIT -->|Git pull| FLEET
+    FLEET -->|Bundle deployments| PA
+    FLEET -->|Bundle deployments| DA
+    FLEET -->|Bundle deployments| TA
+
+    PA --> PW
+    DA --> DW
+    TA --> TW
+
+    classDef management fill:#dbeafe,stroke:#2563eb,color:#172554
+    classDef gitops fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef identity fill:#f3e8ff,stroke:#9333ea,color:#581c87
+    classDef downstream fill:#f1f5f9,stroke:#64748b,color:#0f172a
+
+    class RANCHER management
+    class FLEET,GIT gitops
+    class KEYCLOAK identity
+    class P1,PA,PW,D1,DA,DW,T1,TA,TW downstream
